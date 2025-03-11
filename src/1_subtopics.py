@@ -44,7 +44,9 @@ def find_topics(
     years = range(start_year, end_year+1)
     months = range(start_month, end_month+1)
     
-    print(f'Saving {start_year}-{start_month} to {end_year}-{end_month}\n')
+    print(f'CPU count  : {os.cpu_count()}')
+    print(f'Subreddit  : {subreddit}')
+    print(f'Range      : {start_year}-{start_month} to {end_year}-{end_month}\n')
 
     # ------
     # First pass: train k-means model on subreddit
@@ -62,11 +64,12 @@ def find_topics(
         # load metadata for this subreddit
         print(f'> Loading metadata ... ({time.time()-t0:.3f})')
         metadata = pd.read_csv(
-            os.path.join(meta_path, f'{year}-{month:02}.csv'),
+            os.path.join(meta_path, f'metadata_{year}-{month:02}.csv'),
             compression='gzip',
         )
         metadata = metadata[metadata['subreddit'] == subreddit]
         sr_idx[(year, month)] = metadata['idx'].values
+        print(f'> Found {len(sr_idx[(year, month)])} entries ... ')
 
         # load embeddings for this month
         # TODO: adjust for zarr
@@ -88,18 +91,20 @@ def find_topics(
     # Second pass: save labels and top-k sentences
     # ------
 
+    print(f'\nModel training complete. Labeling and computing tf-idf ... ({time.time()-t0:.3f})\n')
+
     # initialize corpus
     # this will store a list of the top-k sentences for each cluster
     corpus = [[] for _ in range(n_clusters)]
 
     # this will store top-k indices for each cluster
-    top_k_indices = {np.array([]) for _ in range(n_clusters)}
+    top_k_indices = {i: np.array([]) for i in range(n_clusters)}
 
     # TODO: currently this grabs top-k for each month,
     #       but we should grab top-k over the entire date range
 
     for year, month in [(yr, mo) for yr in years for mo in months]:
-        print(f'Reading {year}-{month:02} ... ', end=' ')
+        print(f'Reading {year}-{month:02} ... ({time.time()-t0:.3f})')
 
         # load embeddings for this month
         # TODO: adjust for zarr
@@ -137,12 +142,13 @@ def find_topics(
         for chunk in reader:
             for s in chunk:
                 # check if this sentence is in the subreddit
-                # TODO: these `in` lookups seem like they are too costly
-                if k in sr_idx[(year, month)]:
-                    # NOTE: `k` is the month-level index, `k_idx` is the sr-level index
-                    k_idx = np.where(sr_idx[(year, month)] == k)[0]
-                    if k_idx in top_k_indices[labels[k_idx]]:
-                        corpus[labels[k_idx]].append(s)
+                # NOTE: `k` is the month-level index, `k_idx` is the sr-level index
+                k_idx = np.where(sr_idx[(year, month)] == k)[0]
+                if k_idx.shape[0] > 0:
+                    k_idx = k_idx[0]
+                    c = int(labels[k_idx])
+                    if k_idx in top_k_indices[c]:
+                        corpus[c].append(s)
                 k += 1  # increment regardless
 
     # complete with second pass
@@ -171,8 +177,7 @@ def find_topics(
 
     print(f'> Saving output ... ({time.time()-t0:.3f})')
     output = {
-        'year': year,
-        'month': month,
+        'range': [(start_year, start_month), (end_year, end_month)],
         'full': {
             'scores': X,
             'feature_names': vectorizer.get_feature_names_out()
@@ -185,7 +190,7 @@ def find_topics(
         }
     }
 
-    with open(os.path.join(tfidf_path, f'tfidf_{year}-{month}.pkl'), 'wb') as f:
+    with open(os.path.join(tfidf_path, f'tfidf_{start_year}-{end_year}.pkl'), 'wb') as f:
         pickle.dump(output, f)
 
     print('Garbage collection ...')
