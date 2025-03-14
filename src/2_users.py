@@ -94,7 +94,7 @@ if __name__=="__main__":
     parser.add_argument('--start-month', type=int, required=True)
     parser.add_argument('--end-month', type=int, required=True)
     parser.add_argument('--n-clusters', type=int, required=True)
-    parser.add_argument('--q', type=float, default=0.1, required=True)
+    parser.add_argument('--q', type=float, default=0.1, required=False)
     args = parser.parse_args()
 
     subpath = os.path.join(g['save_path'], args.subpath)
@@ -113,5 +113,5 @@ if __name__=="__main__":
         end_year=args.end_year,
         start_month=args.start_month,
         end_month=args.end_month,
-        quartile=args.q,
+        q=args.q,
     )

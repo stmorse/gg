@@ -7,7 +7,7 @@ import pandas as pd
 
 import utils
 
-METADATA = ['id', 'name', 'created_utc', 'parent_id',
+METADATA = ['id', 'created_utc', 'parent_id',
             'subreddit', 'subreddit_id', 'author']
 
 def get_metadata(
