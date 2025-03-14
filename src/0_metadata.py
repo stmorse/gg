@@ -69,6 +69,8 @@ def get_metadata(
 
 
 if __name__=="__main__":
+    print('Running metadata.py ...')
+
     config = configparser.ConfigParser()
     config.read('../config.ini')
     g = config['general']
@@ -76,8 +78,8 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--start-year', type=int, required=True)
     parser.add_argument('--end-year', type=int, required=True)
-    parser.add_argument('--start-month', type=int, required=True)
-    parser.add_argument('--end-month', type=int, required=True)
+    parser.add_argument('--start-month', type=int, default=1, required=False)
+    parser.add_argument('--end-month', type=int, default=12, required=False)
     args = parser.parse_args()
     
     get_metadata(
