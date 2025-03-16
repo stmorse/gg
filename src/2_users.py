@@ -19,7 +19,6 @@ def get_users(
     label_path: str,
     user_path: str,
     subreddit: str,
-    n_clusters: int,
     start_year: int,
     end_year: int,
     start_month: int,
@@ -34,7 +33,8 @@ def get_users(
     print(f'Subreddit  : {subreddit}')
     print(f'Range      : {start_year}-{start_month} to {end_year}-{end_month}\n')
 
-    all_top_users = []
+    # all_top_users = []
+    all_top_users_metadata = []
 
     # pull all metadata for subreddit and get top q-th users
     for year, month in [(yr, mo) for yr in years for mo in months]:
@@ -47,8 +47,10 @@ def get_users(
             compression='gzip',
         )
         metadata = metadata[metadata['subreddit'] == subreddit]
+        print(f'> Loaded subreddit {subreddit} with {metadata.shape[0]} entries.')
 
         # load labels
+        print(f'> Loading labels ... ({time.time()-t0:.3f})')
         with open(os.path.join(label_path, f'labels_{year}-{month:02}.npz'), 'rb') as f:
             labels = np.load(f)['labels']
 
@@ -56,29 +58,37 @@ def get_users(
         metadata['label'] = labels
 
         # Keep only the top users based on counts
+        print(f'> Building top users ... ({time.time()-t0:.3f})')
         user_counts = metadata['author'].value_counts()
         top_users = user_counts[user_counts >= user_counts.quantile(1 - q)]
-        all_top_users.append(top_users)
+        # all_top_users.append(top_users)
 
         # Filter metadata to include only top users
         top_users_metadata = metadata[metadata['author'].isin(top_users.index)]
+        all_top_users_metadata.append(top_users_metadata)
 
-        # Create a pivot table with users as rows and labels as columns
-        user_label_counts = top_users_metadata.pivot_table(
-            index='author', 
-            columns='label', 
-            aggfunc='size', 
-            fill_value=0
-        )
+    # concatenate into one table
+    print(f'\nComplete with build. Saving ... ({time.time()-t0:.3f})')
+    all_top_users_metadata = pd.concat(all_top_users_metadata)
 
-        # Save the user-label counts to a CSV file
-        user_label_counts.to_csv(
-            os.path.join(user_path, f'user_label_counts_{year}-{month:02}.csv')
-        )
+    # Create a pivot table with users as rows and labels as columns
+    user_label_counts = all_top_users_metadata.pivot_table(
+        index='author', 
+        columns='label', 
+        aggfunc='size', 
+        fill_value=0
+    )
+
+    # Save the user-label counts to a CSV file
+    user_label_counts.to_csv(
+        os.path.join(user_path, f'user_label_counts_{start_year}-{end_year}.csv')
+    )
 
     # concatenate into a single series
-    all_top_users = pd.concat(all_top_users)
-    all_top_users = all_top_users.groupby(all_top_users.index).sum()
+    # all_top_users = pd.concat(all_top_users)
+    # all_top_users = all_top_users.groupby(all_top_users.index).sum()
+
+    print(f'Complete. ({time.time()-t0:.3f})')
 
 
 if __name__=="__main__":
@@ -91,9 +101,8 @@ if __name__=="__main__":
     parser.add_argument('--subreddit', type=str, required=True)
     parser.add_argument('--start-year', type=int, required=True)
     parser.add_argument('--end-year', type=int, required=True)
-    parser.add_argument('--start-month', type=int, required=True)
-    parser.add_argument('--end-month', type=int, required=True)
-    parser.add_argument('--n-clusters', type=int, required=True)
+    parser.add_argument('--start-month', type=int, default=1, required=False)
+    parser.add_argument('--end-month', type=int, default=12, required=False)
     parser.add_argument('--q', type=float, default=0.1, required=False)
     args = parser.parse_args()
 
@@ -108,7 +117,6 @@ if __name__=="__main__":
         label_path=os.path.join(subpath, 'labels'),
         user_path=os.path.join(subpath, subdir),
         subreddit=args.subreddit,
-        n_clusters=args.n_clusters,
         start_year=args.start_year,
         end_year=args.end_year,
         start_month=args.start_month,

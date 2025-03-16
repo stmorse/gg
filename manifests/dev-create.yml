@@ -6,6 +6,8 @@ spec:
   securityContext:
     runAsUser: 270999
     runAsGroup: 1132
+  nodeSelector:
+    kubernetes.io/hostname: 'grace.sciclone.wm.edu'
   containers:
     - name: dev-pod
       image: ghcr.io/stmorse/gg:latest
@@ -13,11 +15,11 @@ spec:
         requests:
           memory: '64Gi'
           # nvidia.com/gpu: '1'
-          cpu: '16'
+          cpu: '4'
         limits:
           memory: '64Gi'
           # nvidia.com/gpu: '1'
-          cpu: '16'
+          cpu: '4'
       command: ['/bin/sh']
       args:
         - '-c'
