@@ -84,10 +84,6 @@ def get_users(
         os.path.join(user_path, f'user_label_counts_{start_year}-{end_year}.csv')
     )
 
-    # concatenate into a single series
-    # all_top_users = pd.concat(all_top_users)
-    # all_top_users = all_top_users.groupby(all_top_users.index).sum()
-
     print(f'Complete. ({time.time()-t0:.3f})')
 
 
